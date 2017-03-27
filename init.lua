@@ -55,7 +55,7 @@ modals = {
   apps = {
     init = function(self, fsm)
       self.modal = hs.hotkey.modal.new()
-      displayModalText "e \t emacs\nc \t chrome\na \t Android Studio\nb \t brave"
+      displayModalText "e \t emacs\nc \t chrome\na \t Android Studio\nb \t brave\nf \t Finder"
       self.modal:bind("","escape", function() fsm:toIdle() end)
       self.modal:bind({"cmd"}, "space", nil, function() fsm:toMain() end)
       hs.fnutils.each({
@@ -63,6 +63,7 @@ modals = {
           { key = "c", app = "Google Chrome" },
           { key = "b", app = "Brave" },
           { key = "a", app = "Android Studio" },
+          { key = "f", app = "Finder" },
           { key = "e", app = "Emacs" },
           { key = "g", app = "Gitter" }}, function(item)
 
