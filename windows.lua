@@ -1,6 +1,10 @@
 local windows = {}
+local utils = require "utils"
 
 -- hs.window.setFrameCorrectness = true
+
+-- undo for window operations
+undo = {}
 
 -- define window movement/resize operation mappings
 local arrowMap = {
@@ -24,64 +28,79 @@ local function rect(rect)
   end
 end
 
-windows.bind = function(modal, fsm)
-  -- maximize window
-  modal:bind("","m", function()
-               rect({0, 0, 1, 1})()
-               windows.highlighActiveWin()
+local function windowJump(modal, fsm, arrow)
+  local dir = { h = "West", j = "South", k = "North", l = "East"}
+  modal:bind({"ctrl"}, arrow, function()
+      slf = fw().filter.defaultCurrentSpace
+      local fn = slf["focusWindow"..dir[arrow]]
+      fn(slf, nil, true, true)
+      windows.highlighActiveWin()
+      fsm:toIdle()
   end)
-
-  -- undo
-  modal:bind("", "u", function() undo:pop() end)
-
-  -- moving/re-sizing windows
-  hs.fnutils.each({"h", "l", "k", "j"}, function(arrow)
-      local dir = { h = "Left", j = "Down", k = "Up", l = "Right"}
-      -- screen halves
-      modal:bind({}, arrow, function()
-          undo:push()
-          rect(arrowMap[arrow].half)()
-      end)
-      -- incrementally
-      modal:bind({"alt"}, arrow, function()
-          undo:push()
-          hs.grid['pushWindow'..dir[arrow]](fw()) 
-      end)
-
-      modal:bind({"shift"}, arrow, function()
-          undo:push()
-          hs.grid['resizeWindow'..arrowMap[arrow].resize](fw())
-      end)
-  end)
-
-  -- window grid
-  hs.grid.setMargins({0, 0})
-  modal:bind("", "g", function()
-                local gridSize = hs.grid.getGrid()
-                undo:push()
-                hs.grid.setGrid("3x2")
-                hs.grid.show(function() hs.grid.setGrid(gridSize) end)
-                fsm:toIdle()
-  end)
-
-  -- jumping between windows
-  hs.fnutils.each({"h", "l", "k", "j"}, function(arrow)
-      modal:bind({"cmd"}, arrow, function()
-          if arrow == "h" then fw().filter.defaultCurrentSpace:focusWindowWest(nil, true, true) end
-          if arrow == "l" then fw().filter.defaultCurrentSpace:focusWindowEast(nil, true, true) end
-          if arrow == "j" then fw().filter.defaultCurrentSpace:focusWindowSouth(nil, true, true) end
-          if arrow == "k" then fw().filter.defaultCurrentSpace:focusWindowNorth(nil, true, true) end
-          windows.highlighActiveWin()
-      end)
-  end)
-
-  -- moving windows around screens
-  modal:bind({}, 'p', function() undo:push(); fw():moveOneScreenNorth() end)
-  modal:bind({}, 'n', function() undo:push(); fw():moveOneScreenSouth() end)
 end
 
--- undo for window operations
-undo = {}
+local function jumpToLastWindow(fsm)
+  utils.globalFilter():getWindows(hs.window.filter.sortByFocusedLast)[2]:focus()
+  fsm:toIdle()
+end
+
+local function maximizeWindowFrame()
+  undo:push()
+  fw():maximize(0)
+  windows.highlighActiveWin()
+end
+
+local function resizeWindow(modal, arrow)
+  local dir = { h = "Left", j = "Down", k = "Up", l = "Right"}
+  -- screen halves
+  modal:bind({}, arrow, function()
+      undo:push()
+      rect(arrowMap[arrow].half)()
+  end)
+  -- local thinShort = { h = , }
+  -- incrementally
+  modal:bind({"alt"}, arrow, function()
+      undo:push()
+      if arrow == "h" or arrow == "l" then
+        hs.grid.resizeWindowThinner(fw())
+      end
+      if arrow == "j" or arrow == "k" then
+        hs.grid.resizeWindowShorter(fw())
+      end
+      hs.grid['pushWindow'..dir[arrow]](fw())
+  end)
+
+  modal:bind({"shift"}, arrow, function()
+      undo:push()
+      hs.grid['resizeWindow'..arrowMap[arrow].resize](fw())
+  end)
+end
+
+hs.grid.setMargins({0, 0})
+hs.grid.setGrid("2x2")
+
+local function showGrid(fsm)
+  hs.grid.show()
+  fsm:toIdle()
+end
+
+local bind = function(hotkeyMmodal, fsm)
+  -- maximize window
+  hotkeyMmodal:bind("","m", maximizeWindowFrame)
+  -- undo
+  hotkeyMmodal:bind("", "u", function() undo:pop() end)
+  -- moving/re-sizing windows
+  hs.fnutils.each({"h", "l", "k", "j"}, hs.fnutils.partial(resizeWindow, hotkeyMmodal))
+  -- window grid
+  hotkeyMmodal:bind("", "g", hs.fnutils.partial(showGrid, fsm))
+  -- jumping between windows
+  hs.fnutils.each({"h", "l", "k", "j"}, hs.fnutils.partial(windowJump, hotkeyMmodal, fsm))
+  -- quick jump to the last window
+  hotkeyMmodal:bind({}, 'w', hs.fnutils.partial(jumpToLastWindow, fsm))
+  -- moving windows between monitors
+  hotkeyMmodal:bind({}, 'p', function() undo:push(); fw():moveOneScreenNorth() end)
+  hotkeyMmodal:bind({}, 'n', function() undo:push(); fw():moveOneScreenSouth() end)
+end
 
 function undo:push()
   local win = fw()
@@ -98,15 +117,17 @@ function undo:pop()
   end
 end
 
+-- in a short burst highlights the outer border of active window frame
 windows.highlighActiveWin = function()
-  local rect = hs.drawing.rectangle(fw():frame())
-  rect:setStrokeColor({["red"]=1,  ["blue"]=0, ["green"]=1, ["alpha"]=1})
-  rect:setStrokeWidth(5)
-  rect:setFill(false)
-  rect:show()
-  hs.timer.doAfter(0.3, function() rect:delete() end)
+  local rctgl = hs.drawing.rectangle(fw():frame())
+  rctgl:setStrokeColor({["red"]=1,  ["blue"]=0, ["green"]=1, ["alpha"]=1})
+  rctgl:setStrokeWidth(5)
+  rctgl:setFill(false)
+  rctgl:show()
+  hs.timer.doAfter(0.3, function() rctgl:delete() end)
 end
 
+-- activates app by a given appName
 windows.activateApp = function(appName)
   hs.application.launchOrFocus(appName)
 
@@ -119,8 +140,21 @@ windows.activateApp = function(appName)
 end
 
 windows.setMouseCursorAtApp = function(appTitle)
-  local sf = hs.application.find(appTitle):findWindow(appTitle):frame()
-  local desired_point = hs.geometry.point(sf._x + sf._w - (sf._w * 0.10), sf._y + sf._h - (sf._h * 0.10)) 
+  local sf = hs.application.find(appTitle):focusedWindow():frame()
+  local desired_point = hs.geometry.point(sf._x + sf._w - (sf._w * 0.10), sf._y + sf._h - (sf._h * 0.10))
   hs.mouse.setAbsolutePosition(desired_point)
 end
+
+windows.addState = function(modal)
+  modal.addState("windows", {
+                   init = function(self, fsm)
+                     self.hotkeyModal = hs.hotkey.modal.new()
+                     modal.displayModalText("cmd + hjkl \t jumping\nhjkl \t\t\t\t halves\nalt + hjkl \t\t increments\nshift + hjkl \t resize\nn, p \t next, prev screen\ng \t\t\t\t\t grid\nm \t\t\t\t maximize\nu \t\t\t\t\t undo")
+                     self.hotkeyModal:bind("","escape", function() fsm:toIdle() end)
+                     self.hotkeyModal:bind({"cmd"}, "space", nil, function() fsm:toMain() end)
+                     bind(self.hotkeyModal, fsm)
+                     self.hotkeyModal:enter()
+  end})
+end
+
 return windows

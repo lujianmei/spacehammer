@@ -1,18 +1,12 @@
 require "preload"
-local machine = require "statemachine"
-local windows = require "windows"
-local slack = require "slack"
+local modal = require "modal"
 require "preview-app"
 
-local displayModalText = function(txt)
-  hs.alert.closeAll()
-  alert(txt, 999999)
-end
-
-allowedApps = {"Emacs", "iTerm2"}
+hs.hints.style = "vimperator"
 hs.hints.showTitleThresh = 4
 hs.hints.titleMaxSize = 10
 hs.hints.fontSize = 30
+
 hs.hints.hintChars = {"S","A","D","F","J","K","L","E","W","C","M","P","G","H"}
 
 local filterAllowedApps = function(w)
@@ -90,34 +84,12 @@ exitAllModals = function()
   end)
 end
 
-local fsm = machine.create({
-    initial = "idle",
-    events = {
-      { name = "toIdle",    from = "*", to = "idle" },
-      { name = "toMain",    from = '*', to = "main" },
-      { name = "toWindows", from = {'main','idle'}, to = "windows" },
-      { name = "toApps",    from = {'main', 'idle'}, to = "apps" }
-    },
-    callbacks = {
-      onidle = function(self, event, from, to)
-        hs.alert.closeAll()
-        exitAllModals()
-      end,
-      onmain = function(self, event, from, to)
-        -- modals[from].modal:exit()
-        initModal(to, self)
-      end,
-      onwindows = function(self, event, from, to)
-        -- modals[from].modal:exit()
-        initModal(to, self)
-      end,
-      onapps = function(self, event, from, to)
-        -- modals[from].modal:exit()
-        initModal(to, self)
-      end
-    }
-})
+require("windows").addState(modal)
+require("apps").addState(modal)
+require("multimedia").addState(modal)
+require("emacs").addState(modal)
 
-fsm:toMain()
+local stateMachine = modal.createMachine()
+stateMachine:toMain()
 
 hs.alert.show("Config Loaded")
