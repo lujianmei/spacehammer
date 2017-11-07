@@ -1,5 +1,6 @@
 local emacs = {}
 
+local windows = require "windows"
 local capture = function(isNote)
   local key = ""
   if isNote then
@@ -24,6 +25,16 @@ local bind = function(hotkeyModal, fsm)
                      fsm:toIdle()
                      capture(true) -- note on currently clocked in
   end)
+  hotkeyModal:bind("", "s", function()
+                     windows.activateApp("Emacs") -- activate current window
+                     fsm:toIdle()
+  end)
+  hotkeyModal:bind("", "h", function()
+                     windows.hideApp("Emacs") -- hide current window
+                     fsm:toIdle() 
+                     
+  end)
+
 end
 
 emacs.switchToApp = function(pid, title)
@@ -37,7 +48,8 @@ emacs.addState = function(modal)
   modal.addState("emacs", {
                    init = function(self, fsm)
                      self.hotkeyModal = hs.hotkey.modal.new()
-                     modal.displayModalText "c \tcapture\ni\tnote"
+                     --modal.displayModalText "c \tcapture\ni\tnote \ns\tshow \nh\thide "
+                     modal.displayModalText "s\tshow \nh\thide"
 
                      self.hotkeyModal:bind("","escape", function() fsm:toIdle() end)
                      self.hotkeyModal:bind({"cmd"}, "space", nil, function() fsm:toMain() end)

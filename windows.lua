@@ -138,6 +138,18 @@ windows.activateApp = function(appName)
     app:unhide()
   end
 end
+-- hide app by a given appName
+windows.hideApp = function(appName)
+  hs.application.launchOrFocus(appName)
+
+  local app = hs.application.find(appName)
+  if app then
+    app:hide()
+    -- hs.timer.doAfter(0.1, windows.highlighActiveWin)
+    -- app:unhide()
+  end
+end
+
 
 windows.setMouseCursorAtApp = function(appTitle)
   local sf = hs.application.find(appTitle):focusedWindow():frame()

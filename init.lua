@@ -53,7 +53,7 @@ modals = {
       self.modal:bind("","escape", function() fsm:toIdle() end)
       self.modal:bind({"cmd"}, "space", nil, function() fsm:toMain() end)
       hs.fnutils.each({
-          { key = "t", app = "iTerm" },
+          { key = "i", app = "iTerm" },
           { key = "c", app = "Google Chrome" },
           { key = "b", app = "Brave" },
           { key = "a", app = "Android Studio" },
@@ -86,8 +86,8 @@ end
 
 require("windows").addState(modal)
 require("apps").addState(modal)
-require("multimedia").addState(modal)
-require("emacs").addState(modal)
+-- require("multimedia").addState(modal)
+-- require("emacs").addState(modal)
 
 local stateMachine = modal.createMachine()
 stateMachine:toMain()
